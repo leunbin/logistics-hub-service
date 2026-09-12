@@ -37,11 +37,9 @@ public class RedisShortestPathCache implements ShortestPathCache {
         Object value = redisTemplate.opsForValue().get(key);
 
         if(value == null){
-            log.info("MISS key={}", key);
             return Optional.empty();
         }
 
-        log.info("HIT key={}", key);
 
         ShortestPath shortestPath =
                 objectMapper.convertValue(value, ShortestPath.class);
@@ -61,7 +59,6 @@ public class RedisShortestPathCache implements ShortestPathCache {
         redisTemplate.opsForValue()
                 .set(key, shortestPath, TTL);
 
-        log.info("PUT key={}", key);
     }
 
     private String generateKey(long graphVersion, UUID fromHubId, UUID toHubId){

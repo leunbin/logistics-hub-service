@@ -1,0 +1,91 @@
+services:
+  postgres:
+    image: postgres:16
+    cpus: 1.0
+    mem_limit: 1g
+    container_name: hub-perf-postgres
+    environment:
+      POSTGRES_DB: hub
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - hub-perf-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hub"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    cpus: 1.0
+    mem_limit: 512m
+    container_name: hub-perf-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  hub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hub-perf-service
+    ports:
+      - "8082:8082"
+
+    cpus: 2.0
+    mem_limit: 2g
+
+    # Dockerfile의 SPRING_PROFILES_ACTIVE=prod를 덮어씀
+    environment:
+      SPRING_PROFILES_ACTIVE: default
+
+      SERVER_PORT: 8082
+      SERVICE_NAME: hub-service
+
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: hub
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      # application.yml의 필수 환경변수
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+
+      NAVER_MAP_CLIENT_ID: ${NAVER_MAP_CLIENT_ID}
+      NAVER_MAP_CLIENT_SECRET: ${NAVER_MAP_CLIENT_SECRET}
+      NAVER_MAP_URL: ${NAVER_MAP_URL}
+
+      # 성능 측정에 불필요한 tracing
+      MANAGEMENT_TRACING_ENABLED: "false"
+
+      EUREKA_CLIENT_ENABLED: "false"
+      EUREKA_CLIENT_REGISTER_WITH_EUREKA: "false"
+      EUREKA_CLIENT_FETCH_REGISTRY: "false"
+
+      SHORTEST_PATH_CACHE_ENABLED: ${SHORTEST_PATH_CACHE_ENABLED:-true}
+      LOGGING_LEVEL_COM_SPARTA_LOGISTICS_INFRASTRUCTURE_CACHE_REDISSHORTESTPATHCACHE: WARN
+      LOGGING_LEVEL_ORG_HIBERNATE_SQL: WARN
+      LOGGING_LEVEL_ORG_HIBERNATE_ORM_JDBC_BIND: WARN
+      SPRING_JPA_PROPERTIES_HIBERNATE_SHOW_SQL: "false"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  hub-perf-postgres-data:

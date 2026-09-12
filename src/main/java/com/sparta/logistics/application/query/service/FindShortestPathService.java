@@ -8,6 +8,7 @@ import com.sparta.logistics.domain.graph.HubGraph;
 import com.sparta.logistics.domain.graph.PathFinder;
 import com.sparta.logistics.domain.model.ShortestPath;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -21,6 +22,9 @@ public class FindShortestPathService implements FindShortestPathUseCase {
     private final PathFinder pathFinder;
     private final ShortestPathCache shortestPathCache;
 
+    @Value("${performance.shortest-path-cache.enabled:true}")
+    private boolean cacheEnabled;
+
     @Override
     public ShortestPathResponse findShortestPath(
             UUID fromHubId,
@@ -28,11 +32,12 @@ public class FindShortestPathService implements FindShortestPathUseCase {
     ){
         long graphVersion = hubGraphManager.getLocalGraphVersion();
 
-        //HIT
-        Optional<ShortestPath> cached = shortestPathCache.get(graphVersion, fromHubId, toHubId);
+        if(cacheEnabled) {
+            Optional<ShortestPath> cached = shortestPathCache.get(graphVersion, fromHubId, toHubId);
 
-        if(cached.isPresent()){
-            return ShortestPathResponse.from(cached.get());
+            if(cached.isPresent()){
+                return ShortestPathResponse.from(cached.get());
+            }
         }
 
         HubGraph hubGraph = hubGraphManager.getGraph();
@@ -44,12 +49,14 @@ public class FindShortestPathService implements FindShortestPathUseCase {
         );
 
         //캐시 적재
-        shortestPathCache.put(
-                graphVersion,
-                fromHubId,
-                toHubId,
-                shortestPath
-        );
+        if (cacheEnabled) {
+            shortestPathCache.put(
+                    graphVersion,
+                    fromHubId,
+                    toHubId,
+                    shortestPath
+            );
+        }
 
         return ShortestPathResponse.from(shortestPath);
     }
