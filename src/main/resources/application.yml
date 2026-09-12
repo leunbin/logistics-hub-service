@@ -141,3 +141,7 @@ logging:
   level:
     org.hibernate.SQL: debug
     org.hibernate.orm.jdbc.bind: trace
+
+performance:
+  shortest-path-cache:
+    enabled: ${SHORTEST_PATH_CACHE_ENABLED:true}
